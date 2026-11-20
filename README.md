@@ -43,7 +43,7 @@ Review → Approve → Queue email ─→ send worker (one at a time per mailbox
 
 ## Stack
 
-Next.js 16 (App Router) · Auth.js (Google) · Drizzle + Neon Postgres · Inngest · Firecrawl · Anthropic API · Zoho Mail REST · Tailwind. Deployed on Vercel.
+Next.js 16 (App Router) · Auth.js (username + password) · Drizzle + Neon Postgres · Inngest · Firecrawl · Anthropic API · Zoho Mail REST · Tailwind. Deployed on Vercel.
 
 ## Phase 2 hooks (not built)
 

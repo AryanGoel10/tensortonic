@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { and, desc, eq, type SQL } from "drizzle-orm";
-import { auth } from "@/auth";
-import { isAllowed } from "@/lib/allowlist";
+import { currentUser } from "@/auth";
 import { db, schema } from "@/db";
 
 const esc = (v: unknown) => {
@@ -10,8 +9,7 @@ const esc = (v: unknown) => {
 };
 
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!isAllowed(session?.user?.email)) return new NextResponse("Unauthorized", { status: 401 });
+  if (!(await currentUser())) return new NextResponse("Unauthorized", { status: 401 });
   const u = new URL(req.url);
   const where: SQL[] = [];
   for (const [param, col] of [["user", schema.activity.userEmail], ["tab", schema.activity.tab], ["level", schema.activity.level], ["kind", schema.activity.kind]] as const) {

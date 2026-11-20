@@ -9,11 +9,16 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-// People who have signed in. Prospect data never lives here; it stays in Google Sheets.
+// Team accounts (username + password). Prospect data never lives here; it stays in Google Sheets.
+// `email` holds the login username (lowercase); the column name is kept for compatibility.
 export const users = pgTable("users", {
   email: text("email").primaryKey(),
   name: text("name"),
   image: text("image"),
+  passwordHash: text("password_hash"),
+  contactEmail: text("contact_email"), // where "Send test to me" goes
+  failedLogins: integer("failed_logins").notNull().default(0),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

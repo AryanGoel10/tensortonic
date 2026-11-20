@@ -6,6 +6,7 @@ import { Badge, Button, Card, Notice } from "@/components/ui";
 import { addSheet, listSheets, removeSheet, tabReport } from "@/app/actions/sheets";
 import { cancelQueued, loadHistory, loadSettings, saveSettings, setSendingMailboxToMine } from "@/app/actions/settings";
 import type { AppSettings } from "@/lib/settings-defaults";
+import { TeamCard } from "./team";
 
 type Loaded = Awaited<ReturnType<typeof loadSettings>>;
 type Report = Awaited<ReturnType<typeof tabReport>>;
@@ -41,6 +42,8 @@ export function SettingsClient() {
     <div className="mx-auto max-w-4xl space-y-6">
       {error && <Notice tone="error">{error}</Notice>}
       {ok && <Notice tone="ok">{ok}</Notice>}
+
+      <TeamCard />
 
       <Sheets serviceAccount={data.serviceAccount} />
 

@@ -7,7 +7,12 @@ About 45 minutes end to end. Do the steps in order; each one gives you values fo
 1. Go to <https://console.cloud.google.com/> → project picker → **New project** → name it `tt-outreach`.
 2. **APIs & Services → Library** → enable **Google Sheets API**.
 
-### 1a. OAuth client (team sign-in)
+### 1a. Sign-in
+
+Sign-in is username + password, no Google login. The first accounts come from `BOOTSTRAP_USERS` (created on deploy if they don't exist; never overwritten). After that, anyone signed in can add teammates, reset passwords and change their own password in **Settings → Team**. Eight wrong passwords in a row lock an account for 15 minutes.
+
+<details><summary>Old Google sign-in steps (not used)</summary>
+
 
 1. **APIs & Services → OAuth consent screen** (Google Auth Platform → Branding/Audience).
    - User type: **External** (so allowlisted Gmail addresses can sign in too). App name `TensorTonic Outreach`, support email, your domain.
@@ -20,7 +25,7 @@ About 45 minutes end to end. Do the steps in order; each one gives you values fo
      - `https://<your-vercel-domain>/api/auth/callback/google`
 3. Copy **Client ID** → `GOOGLE_CLIENT_ID`, **Client secret** → `GOOGLE_CLIENT_SECRET`.
 
-The app checks every sign-in itself: `ALLOWED_DOMAIN=tensortonic.com` lets in anyone with a TensorTonic Google account, and `ALLOWED_EMAILS` adds individual addresses (comma-separated). Everyone else is refused, even if Google lets them through.
+</details>
 
 ### 1b. Service account (reads and writes the sheet)
 
@@ -39,10 +44,7 @@ Delete the downloaded key file once it's stored in Vercel.
 
 1. Vercel → your project → **Storage → Create Database → Neon** (Marketplace) → free plan → connect it to the project. This sets `DATABASE_URL` on Vercel automatically.
 2. Copy the same connection string into `.env.local`.
-3. Create the tables (once, and again after any schema change):
-   ```bash
-   npm run db:migrate
-   ```
+3. Tables are created automatically: every Vercel build runs `scripts/migrate.ts` before `next build`. Locally: `npm run db:migrate`.
 
 ## 3. Inngest (background jobs)
 

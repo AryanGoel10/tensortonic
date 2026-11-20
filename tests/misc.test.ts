@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll } from "vitest";
 import { scoreHit, handleFromUrl } from "@/lib/research/xfinder";
-import { isAllowed } from "@/lib/allowlist";
+import { hashPassword, verifyPassword, usernameProblem } from "@/lib/passwords";
 import { isWeekend, nextMorning, startOfLocalDay } from "@/lib/time";
 import { cleanMarkdown, cleanCompanyName } from "@/lib/research/firecrawl";
 import { tidy } from "@/lib/ai/generate";
@@ -24,15 +24,18 @@ describe("X finder", () => {
   });
 });
 
-describe("allowlist", () => {
-  const env = { ALLOWED_DOMAIN: "tensortonic.com", ALLOWED_EMAILS: "Someone@gmail.com, other@x.com" };
-  it("allows the domain and listed emails only", () => {
-    expect(isAllowed("pratham@tensortonic.com", env)).toBe(true);
-    expect(isAllowed("someone@gmail.com", env)).toBe(true);
-    expect(isAllowed("random@gmail.com", env)).toBe(false);
-    expect(isAllowed("x@nottensortonic.com", env)).toBe(false);
-    expect(isAllowed("x@tensortonic.com.evil.io", env)).toBe(false);
-    expect(isAllowed(null, env)).toBe(false);
+describe("passwords", () => {
+  it("hashes and verifies", async () => {
+    const h = await hashPassword("correct horse battery");
+    expect(h.startsWith("scrypt$")).toBe(true);
+    expect(await verifyPassword("correct horse battery", h)).toBe(true);
+    expect(await verifyPassword("wrong", h)).toBe(false);
+    expect(await verifyPassword("x", null)).toBe(false);
+    expect(await verifyPassword("x", "garbage")).toBe(false);
+  });
+  it("validates usernames", () => {
+    expect(usernameProblem("aryan")).toBeNull();
+    expect(usernameProblem("a b")).not.toBeNull();
   });
 });
 

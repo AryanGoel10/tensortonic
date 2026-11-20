@@ -1,56 +1,74 @@
-import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
+import NextAuth, { CredentialsSignin } from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import { redirect } from "next/navigation";
-import { isAllowed } from "@/lib/allowlist";
+import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { hashPassword, normalizeUsername, verifyPassword } from "@/lib/passwords";
+
+const MAX_FAILS = 8;
+const LOCK_MINUTES = 15;
+
+class LockedError extends CredentialsSignin {
+  code = "locked";
+}
+
+let dummyHash: Promise<string> | null = null;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    Credentials({
+      credentials: { username: { label: "Username" }, password: { label: "Password", type: "password" } },
+      async authorize(creds) {
+        const username = normalizeUsername(String(creds?.username ?? ""));
+        const password = String(creds?.password ?? "");
+        if (!username || !password) return null;
+        const [u] = await db().select().from(schema.users).where(eq(schema.users.email, username));
+        if (!u || !u.passwordHash) {
+          // same work as a real check so response time doesn't reveal which usernames exist
+          dummyHash ??= hashPassword("not-a-real-password");
+          await verifyPassword(password, await dummyHash);
+          return null;
+        }
+        if (u.lockedUntil && u.lockedUntil.getTime() > Date.now()) throw new LockedError();
+        if (!(await verifyPassword(password, u.passwordHash))) {
+          const fails = u.failedLogins + 1;
+          const lock = fails >= MAX_FAILS;
+          await db()
+            .update(schema.users)
+            .set({ failedLogins: lock ? 0 : fails, lockedUntil: lock ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null })
+            .where(eq(schema.users.email, username));
+          return null;
+        }
+        await db().update(schema.users).set({ failedLogins: 0, lockedUntil: null, lastSeenAt: new Date() }).where(eq(schema.users.email, username));
+        return { id: u.email, email: u.email, name: u.name ?? u.email };
+      },
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
   trustHost: true,
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 30 * 24 * 3600 },
   pages: { signIn: "/login", error: "/login" },
-  callbacks: {
-    async signIn({ user, profile }) {
-      const email = user.email ?? (profile?.email as string | undefined);
-      // Google must have verified the address, and it must be on the allowlist.
-      if (profile && (profile as { email_verified?: boolean }).email_verified === false) return false;
-      if (!isAllowed(email)) return false;
-      try {
-        await db()
-          .insert(schema.users)
-          .values({ email: email!.toLowerCase(), name: user.name ?? null, image: user.image ?? null })
-          .onConflictDoUpdate({
-            target: schema.users.email,
-            set: { name: user.name ?? null, image: user.image ?? null, lastSeenAt: new Date() },
-          });
-      } catch (err) {
-        console.error("user upsert failed", err);
-      }
-      return true;
-    },
-    async session({ session }) {
-      // Re-check on every request so removing someone from the allowlist takes effect immediately.
-      if (!isAllowed(session.user?.email)) return { ...session, user: undefined as never };
-      return session;
-    },
-  },
 });
 
 export interface AppUser {
-  email: string;
+  email: string; // the login username
   name: string;
+  contactEmail: string | null;
 }
 
-/** For server components / actions. Redirects to /login when signed out or not allowed. */
-export async function requireUser(): Promise<AppUser> {
+/** Signed-in user, or null. Re-checks the account on every request, so removing someone signs them out. */
+export async function currentUser(): Promise<AppUser | null> {
   const session = await auth();
-  const email = session?.user?.email?.toLowerCase();
-  if (!email || !isAllowed(email)) redirect("/login");
-  return { email, name: session?.user?.name ?? email.split("@")[0] };
+  const username = session?.user?.email?.toLowerCase();
+  if (!username) return null;
+  const [u] = await db().select().from(schema.users).where(eq(schema.users.email, username));
+  if (!u || !u.passwordHash) return null;
+  return { email: u.email, name: u.name ?? u.email, contactEmail: u.contactEmail };
+}
+
+/** For server components and actions. Redirects to /login when signed out. */
+export async function requireUser(): Promise<AppUser> {
+  const u = await currentUser();
+  if (!u) redirect("/login");
+  return u;
 }

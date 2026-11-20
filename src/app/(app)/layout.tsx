@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             ) : (
               <Link href="/settings" className="rounded border border-red-300 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">LIVE SENDING</Link>
             )}
-            <span className="hidden text-muted sm:inline">{user.email}</span>
+            <span className="hidden text-muted sm:inline">{user.name}</span>
             <form
               action={async () => {
                 "use server";

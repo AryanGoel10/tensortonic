@@ -184,6 +184,8 @@ export async function sendTestToSelf(spreadsheetId: string, tab: string, key: st
     const s = await getSettings();
     if (!s.sendingMailbox || !(await getMailbox(s.sendingMailbox))) throw new Error("Connect the sending Zoho mailbox in Settings first.");
     const p = await mustRow(spreadsheetId, tab, key);
+    const to = user.contactEmail || (await getMailbox(s.sendingMailbox))?.fromAddress;
+    if (!to) throw new Error("Add your email under Settings → Team so test emails have somewhere to go.");
     const id = randomUUID();
     await db().insert(schema.sendQueue).values({
       id,
@@ -192,7 +194,7 @@ export async function sendTestToSelf(spreadsheetId: string, tab: string, key: st
       rowKey: key,
       campaign: p.ai["AI Campaign"] || "Fresh pitch",
       senderEmail: s.sendingMailbox,
-      toEmail: user.email,
+      toEmail: to,
       subject: p.ai["AI Email Subject"] ?? "",
       body: p.ai["AI Email Body"] ?? "",
       kind: "test",
@@ -200,7 +202,7 @@ export async function sendTestToSelf(spreadsheetId: string, tab: string, key: st
       queuedBy: user.email,
     });
     await inngest.send({ name: EVENTS.sendEmail, data: { queueId: id, sender: s.sendingMailbox } });
-    return { to: user.email };
+    return { to };
   });
 }
 

@@ -1,14 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { auth } from "@/auth";
-import { isAllowed } from "@/lib/allowlist";
+import { currentUser } from "@/auth";
 import { completeConnect } from "@/lib/zoho";
 import { getSettings, updateSettings } from "@/lib/settings";
 import { log, errMsg } from "@/lib/activity";
 
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  const email = session?.user?.email?.toLowerCase();
-  if (!email || !isAllowed(email)) return NextResponse.redirect(new URL("/login", req.url));
+  const email = (await currentUser())?.email;
+  if (!email) return NextResponse.redirect(new URL("/login", req.url));
 
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
