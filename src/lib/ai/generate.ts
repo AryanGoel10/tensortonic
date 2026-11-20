@@ -7,6 +7,7 @@ import type { AppSettings } from "@/lib/settings-defaults";
 import type { Campaign, Draft, ResearchPack } from "@/lib/types";
 import { packText } from "@/lib/research/firecrawl";
 import { validate, type ValidationResult } from "@/lib/validator";
+import { geminiStructured, geminiModelInUse } from "./gemini";
 
 const DraftSchema = z.object({
   research_summary: z.string().describe("2-3 plain sentences about what they sell and to whom"),
@@ -23,9 +24,15 @@ const DraftSchema = z.object({
 
 const GATEWAY_URL = "https://ai-gateway.vercel.sh";
 
-/** Direct Anthropic API when ANTHROPIC_API_KEY is set; otherwise Vercel AI Gateway (API key or the project's OIDC token). */
+/** Which writer is used: Anthropic (ANTHROPIC_API_KEY) > Gemini free tier (GEMINI_API_KEY) > Vercel AI Gateway. */
+export function provider(): "anthropic" | "gemini" | "gateway" {
+  if (process.env.ANTHROPIC_API_KEY) return "anthropic";
+  if (process.env.GEMINI_API_KEY) return "gemini";
+  return "gateway";
+}
+
 export function usingGateway(): boolean {
-  return !process.env.ANTHROPIC_API_KEY;
+  return provider() === "gateway";
 }
 
 let _direct: Anthropic | null = null;
@@ -45,6 +52,7 @@ async function client(): Promise<Anthropic> {
 
 /** Model id from CLAUDE_MODEL. AI Gateway ids look like "anthropic/claude-sonnet-5.5". */
 export function model(): string {
+  if (provider() === "gemini") return geminiModelInUse();
   const m = process.env.CLAUDE_MODEL || "claude-sonnet-5-5";
   if (!usingGateway()) return m.replace(/^anthropic\//, "").replace(/(\d)\.(\d)/, "$1-$2");
   if (m.includes("/")) return m;
@@ -118,6 +126,9 @@ export function tidy(d: Draft): Draft {
 }
 
 async function call(s: AppSettings, userContent: string): Promise<Draft> {
+  if (provider() === "gemini") {
+    return geminiStructured(systemBlocks(s).map((b) => b.text).join("\n"), userContent, DraftSchema);
+  }
   const res = await (await client()).messages.parse({
     model: model(),
     max_tokens: 16000,
