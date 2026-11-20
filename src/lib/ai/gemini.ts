@@ -5,7 +5,8 @@ import { RetryAfterError } from "inngest";
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 // Tried in order. The first that the key can use wins and is remembered for this process.
-const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-3-flash", "gemini-2.5-flash"];
+// Newest first; the "lite" models are the most likely to be on the free tier.
+const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3-flash"];
 let workingModel: string | null = null;
 
 export function geminiModels(): string[] {
@@ -61,6 +62,7 @@ export async function geminiStructured<T>(system: string, user: string, schema: 
   const jsonSchema = z.toJSONSchema(schema);
   const models = workingModel ? [workingModel] : geminiModels();
   let lastErr: unknown;
+  const perModel: string[] = [];
   for (const model of models) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -76,7 +78,10 @@ export async function geminiStructured<T>(system: string, user: string, schema: 
         lastErr = err;
         if (err instanceof GeminiError) {
           // model not available to this key / no free quota on it: try the next model
-          if (err.status === 404 || (err.status === 429 && /limit: 0|quota.*0/i.test(err.message)) || err.status === 403) break;
+          if (err.status === 404 || (err.status === 429 && /limit: 0|quota.*0/i.test(err.message)) || err.status === 403) {
+            perModel.push(`${model}: ${err.message.slice(0, 200)}`);
+            break;
+          }
           if (err.status === 429 || err.status >= 500) {
             // Don't sleep inside the step (Vercel cuts requests at 5 minutes). One short wait,
             // then hand it back to Inngest to retry the step later.
@@ -94,5 +99,6 @@ export async function geminiStructured<T>(system: string, user: string, schema: 
       }
     }
   }
+  if (perModel.length) throw new Error(`No Gemini model worked for this key. ${perModel.join(" | ")}`);
   throw lastErr instanceof Error ? lastErr : new Error("Gemini call failed");
 }

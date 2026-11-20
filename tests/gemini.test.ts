@@ -22,7 +22,7 @@ describe("gemini provider", () => {
     const out = await geminiStructured("sys", "user", z.object({ a: z.string() }));
     expect(out).toEqual({ a: "hi" });
     expect(calls.length).toBe(2);
-    expect(geminiModelInUse()).toBe("gemini-3-flash");
+    expect(geminiModelInUse()).toBe("gemini-3.7-flash");
   });
 
   it("re-asks when the output doesn't match the schema", async () => {
