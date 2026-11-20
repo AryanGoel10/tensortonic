@@ -64,7 +64,7 @@ export async function findPersonX(
   let credits = 0;
 
   const run = async (q: string) => {
-    const res = await fc.search(q, { limit: 5, sources: ["web"], domainTools: false });
+    const res = await fc.search(q, { limit: 5, sources: ["web"], domainTools: false, timeout: 30_000 });
     credits += 2;
     return ((res.web ?? []) as SearchHit[]).filter((h) => h.url);
   };

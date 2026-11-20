@@ -139,7 +139,7 @@ export async function buildResearchPack(p: Prospect, onError: Logger): Promise<R
   // 2. Map site and scrape up to 2 useful pages (changelog, blog, docs, latest post)
   if (website && homepageSummary) {
     try {
-      const map = await fc.map(website, { limit: 200, includeSubdomains: true });
+      const map = await fc.map(website, { limit: 200, includeSubdomains: true, timeout: 30_000 });
       credits += 1;
       const picks = pickExtraPages(map.links ?? [], website);
       for (const pick of picks) {
@@ -172,6 +172,7 @@ export async function buildResearchPack(p: Prospect, onError: Logger): Promise<R
       tbs: dateRangeTbs(120),
       sources: ["web"],
       domainTools: false,
+      timeout: 30_000,
     });
     credits += 2;
     for (const r of (res.web ?? []) as { url?: string; title?: string; description?: string }[]) {

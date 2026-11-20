@@ -3,7 +3,7 @@ import { db, schema } from "@/db";
 import { inngest, EVENTS, type ResearchRowData, type SendEmailData } from "./client";
 import { readRow, writeRow, RowWriteError } from "@/lib/sheets/client";
 import { buildResearchPack } from "@/lib/research/firecrawl";
-import { generateDraft } from "@/lib/ai/generate";
+import { firstDraft, fixDraft, type DraftResult } from "@/lib/ai/generate";
 import { draftToColumns, savePack } from "@/lib/drafts";
 import { getSettings } from "@/lib/settings";
 import { log, errMsg } from "@/lib/activity";
@@ -26,8 +26,8 @@ export const researchRow = inngest.createFunction(
   {
     id: "research-and-draft-row",
     triggers: [{ event: EVENTS.researchRow }],
-    concurrency: { limit: 3 },
-    retries: 2,
+    concurrency: { limit: 2 }, // Gemini free tier allows only a few requests per minute
+    retries: 5,
     onFailure: async ({ event, error }) => {
       const d = (event.data as { event: { data: ResearchRowData } }).event.data;
       await setItem(d.runId, d.key, "failed", error.message);
@@ -39,9 +39,20 @@ export const researchRow = inngest.createFunction(
       await log({ level: "error", kind: "draft", userEmail: d.user, spreadsheetId: d.spreadsheetId, tab: d.tab, rowKey: d.key, message: `Research & Draft failed: ${error.message}` });
     },
   },
-  async ({ event, step }) => {
+  async ({ event, step, attempt }) => {
     const d = event.data as ResearchRowData;
     const ctx = { spreadsheetId: d.spreadsheetId, tab: d.tab, rowKey: d.key, userEmail: d.user };
+    // Record a step failure on the row (shown in the table) and in the log, then let Inngest retry.
+    const guard = async <T>(name: string, status: string, fn: () => Promise<T>): Promise<T> => {
+      try {
+        return await fn();
+      } catch (err) {
+        const msg = errMsg(err);
+        await setItem(d.runId, d.key, status, `${name} failed (attempt ${attempt + 1}), retrying: ${msg}`);
+        await log({ ...ctx, level: "warn", kind: "draft", message: `${name} failed (attempt ${attempt + 1}): ${msg}` });
+        throw err;
+      }
+    };
 
     const prospect = await step.run("load-row", async () => {
       const { prospect, matches } = await readRow(d.spreadsheetId, d.tab, d.key);
@@ -51,17 +62,24 @@ export const researchRow = inngest.createFunction(
       return prospect;
     });
 
-    const pack = (await step.run("research", async () => {
-      return buildResearchPack(prospect, (message, meta) =>
-        log({ ...ctx, level: "warn", kind: "research", message, meta }),
-      );
-    })) as ResearchPack;
+    const pack = (await step.run("research", () =>
+      guard("Research", "researching", () =>
+        buildResearchPack(prospect, (message, meta) => log({ ...ctx, level: "warn", kind: "research", message, meta })),
+      ),
+    )) as ResearchPack;
 
-    const result = await step.run("generate", async () => {
-      await setItem(d.runId, d.key, "drafting");
-      const s = await getSettings();
-      return generateDraft(prospect, pack, d.campaign, s);
-    });
+    const first = (await step.run("write", () =>
+      guard("Writing", "drafting", async () => {
+        await setItem(d.runId, d.key, "drafting");
+        return firstDraft(prospect, pack, d.campaign, await getSettings());
+      }),
+    )) as DraftResult;
+
+    const result = first.validation.ok
+      ? first
+      : ((await step.run("fix", () =>
+          guard("Fixing draft", "drafting", async () => fixDraft(prospect, pack, d.campaign, await getSettings(), first)),
+        )) as DraftResult);
 
     await step.run("write-back", async () => {
       await savePack(d.spreadsheetId, d.tab, d.key, pack, result.draft);

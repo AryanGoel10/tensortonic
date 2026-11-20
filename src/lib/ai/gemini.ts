@@ -1,5 +1,6 @@
 // Google Gemini (free tier via an AI Studio key). Native generateContent API with JSON output.
 import { z } from "zod";
+import { RetryAfterError } from "inngest";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -24,6 +25,7 @@ class GeminiError extends Error {
 
 async function generate(model: string, system: string, user: string, jsonSchema: object): Promise<string> {
   const res = await fetch(`${BASE}/models/${model}:generateContent`, {
+    signal: AbortSignal.timeout(90_000),
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY ?? "" },
     body: JSON.stringify({
@@ -60,7 +62,7 @@ export async function geminiStructured<T>(system: string, user: string, schema: 
   const models = workingModel ? [workingModel] : geminiModels();
   let lastErr: unknown;
   for (const model of models) {
-    for (let attempt = 0; attempt < 4; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const text = await generate(model, system, user, jsonSchema);
         const parsed = schema.safeParse(parseJson(text));
@@ -76,12 +78,18 @@ export async function geminiStructured<T>(system: string, user: string, schema: 
           // model not available to this key / no free quota on it: try the next model
           if (err.status === 404 || (err.status === 429 && /limit: 0|quota.*0/i.test(err.message)) || err.status === 403) break;
           if (err.status === 429 || err.status >= 500) {
-            await new Promise((r) => setTimeout(r, Math.min(err.retryAfterMs ?? 15_000 * (attempt + 1), 60_000)));
-            continue;
+            // Don't sleep inside the step (Vercel cuts requests at 5 minutes). One short wait,
+            // then hand it back to Inngest to retry the step later.
+            if (attempt === 0 && (err.retryAfterMs ?? 0) <= 10_000) {
+              await new Promise((r) => setTimeout(r, err.retryAfterMs ?? 5_000));
+              continue;
+            }
+            throw new RetryAfterError(`Gemini is rate-limiting (free tier). Will retry automatically. ${err.message}`, Math.max(err.retryAfterMs ?? 30_000, 20_000));
           }
           throw err;
         }
         if (err instanceof SyntaxError) continue; // bad JSON, ask again
+        if (err instanceof Error && err.name === "TimeoutError") throw new Error(`Gemini didn't answer within 90 seconds (${model})`);
         throw err;
       }
     }

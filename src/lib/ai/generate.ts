@@ -160,26 +160,32 @@ export function validateDraft(d: Draft, p: Prospect, pack: ResearchPack, s: AppS
   );
 }
 
-/**
- * Generate a draft. If the rule checker finds hard failures, ask the model once to fix
- * exactly those problems. Whatever is still failing after that goes to "Needs review".
- */
-export async function generateDraft(
-  p: Prospect,
-  pack: ResearchPack,
-  campaign: Campaign,
-  s: AppSettings,
-  opts?: { previous?: Draft; instruction?: string },
-): Promise<{ draft: Draft; validation: ValidationResult; attempts: number }> {
-  const base = `Write the outreach for this prospect.
+function basePrompt(p: Prospect, pack: ResearchPack, campaign: Campaign) {
+  return `Write the outreach for this prospect.
 
 PROSPECT:
 ${JSON.stringify(rowForPrompt(p, campaign), null, 2)}
 
 RESEARCH PACK (the only source of facts about them):
 ${JSON.stringify(packForPrompt(pack), null, 2)}`;
+}
 
-  const first = opts?.previous
+export interface DraftResult {
+  draft: Draft;
+  validation: ValidationResult;
+  attempts: number;
+}
+
+/** First draft (or a regenerate with the reviewer's instruction). One model call. */
+export async function firstDraft(
+  p: Prospect,
+  pack: ResearchPack,
+  campaign: Campaign,
+  s: AppSettings,
+  opts?: { previous?: Draft; instruction?: string },
+): Promise<DraftResult> {
+  const base = basePrompt(p, pack, campaign);
+  const prompt = opts?.previous
     ? `${base}
 
 PREVIOUS DRAFT:
@@ -188,24 +194,33 @@ ${JSON.stringify(opts.previous, null, 2)}
 REVIEWER INSTRUCTION (apply it, keep everything else that was good, and keep all the rules):
 ${opts.instruction || "Improve it."}`
     : base;
+  const draft = tidy(await call(s, prompt));
+  return { draft, validation: validateDraft(draft, p, pack, s), attempts: 1 };
+}
 
-  let draft = tidy(await call(s, first));
-  let validation = validateDraft(draft, p, pack, s);
-  let attempts = 1;
-
-  if (!validation.ok) {
-    const fixPrompt = `${base}
+/** One repair call that fixes exactly the failed checks. */
+export async function fixDraft(p: Prospect, pack: ResearchPack, campaign: Campaign, s: AppSettings, prev: DraftResult): Promise<DraftResult> {
+  const fixPrompt = `${basePrompt(p, pack, campaign)}
 
 YOUR DRAFT:
-${JSON.stringify(draft, null, 2)}
+${JSON.stringify(prev.draft, null, 2)}
 
 It failed these checks. Fix only these problems and return the full corrected draft:
-${validation.hard.map((h) => `- ${h}`).join("\n")}
+${prev.validation.hard.map((h) => `- ${h}`).join("\n")}
 
 Reminders: linkedin_note and x_dm max 280 characters each (count them), subject max 60 characters, email body max 160 words before {{SENDER_SIGNATURE}}, greeting must be "Hi ${p.firstName},", the email must contain ${s.deckLink}, hook_source_url must be one of allowed_source_urls exactly, no numbers except 50,000+, 1M+, 1,300+, 1,000+, 30, 20 and numbers that appear in the research pack.`;
-    draft = tidy(await call(s, fixPrompt));
-    validation = validateDraft(draft, p, pack, s);
-    attempts = 2;
-  }
-  return { draft, validation, attempts };
+  const draft = tidy(await call(s, fixPrompt));
+  return { draft, validation: validateDraft(draft, p, pack, s), attempts: prev.attempts + 1 };
+}
+
+/** Draft + (if needed) one fix pass. Used by Regenerate and the preview script. */
+export async function generateDraft(
+  p: Prospect,
+  pack: ResearchPack,
+  campaign: Campaign,
+  s: AppSettings,
+  opts?: { previous?: Draft; instruction?: string },
+): Promise<DraftResult> {
+  const first = await firstDraft(p, pack, campaign, s, opts);
+  return first.validation.ok ? first : fixDraft(p, pack, campaign, s, first);
 }
