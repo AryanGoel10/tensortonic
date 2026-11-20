@@ -26,15 +26,23 @@ export async function addSheet(input: string): Promise<{ ok: true; title: string
     return { ok: true, title: info.title };
   } catch (err) {
     const code = (err as { code?: number }).code;
+    const msg = errMsg(err);
+    await log({ userEmail: user.email, level: "error", kind: "sheet", spreadsheetId: id, message: `Connect failed (${code ?? "?"}): ${msg}` });
+    if (/has not been used|is disabled|SERVICE_DISABLED|accessNotConfigured/i.test(msg)) {
+      const project = msg.match(/project[= ](\d+|[a-z][a-z0-9-]+)/i)?.[1];
+      return {
+        ok: false,
+        error: `The Google Sheets API is turned off in your Google Cloud project. Enable it at https://console.cloud.google.com/apis/library/sheets.googleapis.com${project ? `?project=${project}` : ""}, wait a minute, then click Connect again.`,
+      };
+    }
     if (code === 403 || code === 404) {
       return {
         ok: false,
-        error: "The service account can't open this sheet. Share the sheet with this address as Editor, then try again.",
+        error: `Google said: "${msg}". If the sheet isn't shared yet, share it with this address as Editor, then try again.`,
         serviceAccount: serviceAccountEmail(),
       };
     }
-    await log({ userEmail: user.email, level: "error", kind: "sheet", spreadsheetId: id, message: `Connect failed: ${errMsg(err)}` });
-    return { ok: false, error: errMsg(err) };
+    return { ok: false, error: msg };
   }
 }
 
