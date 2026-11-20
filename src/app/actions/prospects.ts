@@ -7,10 +7,10 @@ import { db, schema } from "@/db";
 import { readTab } from "@/lib/sheets/client";
 import { inngest, EVENTS } from "@/inngest/client";
 import { log } from "@/lib/activity";
-import type { Campaign } from "@/lib/types";
+import type { RunCampaign } from "@/lib/types";
 import type { Prospect } from "@/lib/sheets/mapping";
 import { CREDITS_PER_ROW_ESTIMATE } from "@/lib/research/firecrawl";
-import { eligible } from "@/lib/eligibility";
+import { eligible, resolveCampaign } from "@/lib/eligibility";
 import { getSettings } from "@/lib/settings";
 import { contactHistory, type ContactHistory } from "@/lib/history";
 
@@ -51,7 +51,7 @@ export async function costEstimate(rows: number) {
   };
 }
 
-export async function startRun(spreadsheetId: string, tab: string, keys: string[], campaign: Campaign) {
+export async function startRun(spreadsheetId: string, tab: string, keys: string[], campaign: RunCampaign) {
   const user = await requireUser();
   const { map, prospects } = await readTab(spreadsheetId, tab);
   if (!map.canDraft) throw new Error("This tab is missing Email or Company columns.");
@@ -72,7 +72,7 @@ export async function startRun(spreadsheetId: string, tab: string, keys: string[
   await db().insert(schema.jobRuns).values({ id: runId, spreadsheetId, tab, campaign, total: rows.length, startedBy: user.email });
   await db().insert(schema.jobItems).values(rows.map((rowKey) => ({ runId, rowKey, status: "queued" })));
   await inngest.send(
-    rows.map((key) => ({ name: EVENTS.researchRow, data: { runId, spreadsheetId, tab, key, campaign, user: user.email } })),
+    rows.map((key) => ({ name: EVENTS.researchRow, data: { runId, spreadsheetId, tab, key, campaign: resolveCampaign(byKey.get(key)!, campaign), user: user.email } })),
   );
   await log({ userEmail: user.email, kind: "run", spreadsheetId, tab, message: `Started Research & Draft on ${rows.length} rows (${campaign})`, meta: { runId } });
   return { runId, count: rows.length, skipped: keys.length - rows.length };

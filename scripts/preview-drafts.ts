@@ -14,7 +14,7 @@ import { readTab } from "@/lib/sheets/client";
 import { buildResearchPack } from "@/lib/research/firecrawl";
 import { generateDraft, model } from "@/lib/ai/generate";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
-import { eligible } from "@/lib/eligibility";
+import { eligible, resolveCampaign } from "@/lib/eligibility";
 
 const SHEET = process.env.PREVIEW_SHEET_ID || "1NApt8DQNuzOTgyZ9U6IVJPokJh0GgD-ed45dwvxRAE0";
 const tab = process.argv[2] || "Voice AI";
@@ -25,7 +25,7 @@ const cell = (s: string) => (s || "").replace(/\|/g, "\\|").replace(/\n+/g, "<br
 async function main() {
   const { prospects, map } = await readTab(SHEET, tab);
   if (!map.canDraft) throw new Error(map.warnings.join(" "));
-  const rows = prospects.filter((p) => eligible(p, "Fresh pitch", DEFAULT_SETTINGS.excludedCompanies)).slice(0, n);
+  const rows = prospects.filter((p) => eligible(p, "Auto", DEFAULT_SETTINGS.excludedCompanies)).slice(0, n);
   console.log(`${tab}: drafting ${rows.length} rows with ${model()}`);
 
   const table: string[] = [
@@ -42,13 +42,14 @@ async function main() {
     try {
       const pack = await buildResearchPack(p, (m) => console.warn(`\n     warn: ${m}`));
       credits += pack.creditsUsed;
-      const { draft, validation, attempts } = await generateDraft(p, pack, "Fresh pitch", DEFAULT_SETTINGS);
+      const campaign = resolveCampaign(p, "Auto");
+      const { draft, validation, attempts } = await generateDraft(p, pack, campaign, DEFAULT_SETTINGS);
       const x = pack.personX ? `${pack.personX.url} (${pack.personX.confidence})` : "none found";
       const checks = [...validation.hard.map((h) => `**FAIL** ${h}`), ...validation.soft].join("<br>") || "all pass";
       table.push(`| ${i + 1} | ${cell(`${p.firstName} ${p.lastName}, ${p.title}, ${p.company}`)} | ${cell(draft.hook)}<br><sub>${draft.hook_source_url}</sub> | ${cell(draft.challenge_idea)} | ${cell(x)} | ${cell(checks)} |`);
       details.push(
         `## ${i + 1}. ${p.firstName} ${p.lastName} (${p.company})`,
-        `Confidence: ${draft.confidence} · Claude calls: ${attempts} · Firecrawl credits: ${pack.creditsUsed} · LinkedIn already contacted: ${p.linkedinStatus || "None"}`,
+        `Campaign: ${campaign} · Confidence: ${draft.confidence} · Claude calls: ${attempts} · Firecrawl credits: ${pack.creditsUsed} · LinkedIn already contacted: ${p.linkedinStatus || "None"}`,
         "",
         `**Research summary:** ${draft.research_summary}`,
         "",

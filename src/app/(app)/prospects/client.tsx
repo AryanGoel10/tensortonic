@@ -7,7 +7,7 @@ import { Badge, Button, Notice } from "@/components/ui";
 import { loadTab, startRun, runProgress, costEstimate, type TabView } from "@/app/actions/prospects";
 import { addAiColumns } from "@/app/actions/sheets";
 import { eligible } from "@/lib/eligibility";
-import type { Campaign } from "@/lib/types";
+import type { RunCampaign } from "@/lib/types";
 import type { Prospect } from "@/lib/sheets/mapping";
 import type { ContactHistory } from "@/lib/history";
 
@@ -24,7 +24,7 @@ export function ProspectsClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [campaign, setCampaign] = useState<Campaign>("Fresh pitch");
+  const [campaign, setCampaign] = useState<RunCampaign>("Auto");
   const [fOutreach, setFOutreach] = useState(ALL);
   const [fOwner, setFOwner] = useState(ALL);
   const [fDraft, setFDraft] = useState(ALL);
@@ -168,9 +168,10 @@ export function ProspectsClient() {
               <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} /> Show Meeting Booked / Emailed
             </label>
             <div className="ml-auto flex items-center gap-2">
-              <select value={campaign} onChange={(e) => setCampaign(e.target.value as Campaign)} className="h-8 rounded-md border border-border px-2 text-sm" title="Campaign type">
-                <option value="Fresh pitch">Fresh pitch (everyone, new Gradium pitch)</option>
-                <option value="Re-engage">Re-engage (mentions earlier outreach)</option>
+              <select value={campaign} onChange={(e) => setCampaign(e.target.value as RunCampaign)} className="h-8 rounded-md border border-border px-2 text-sm" title="Campaign type">
+                <option value="Auto">Auto: re-engage if emailed before, else first touch</option>
+                <option value="Fresh pitch">First touch only (never mentions earlier email)</option>
+                <option value="Re-engage">Re-engage only (rows already emailed)</option>
               </select>
               <Button variant="primary" disabled={!data.canDraft || selectedEligible.length === 0 || runs.length > 0} onClick={askRun}>
                 Research &amp; Draft {selectedEligible.length ? `(${selectedEligible.length})` : ""}
@@ -213,7 +214,7 @@ export function ProspectsClient() {
             </table>
           </div>
           <p className="text-xs text-muted">
-            {visible.length} shown of {prospects.length} rows. {campaign === "Fresh pitch" ? "Fresh pitch: every row except Meeting Booked, the never-contact list, and people already emailed from another tab." : "Re-engage: only rows with Outreach Status Message Done or Followed Up."}
+            {visible.length} shown of {prospects.length} rows. {campaign === "Re-engage" ? "Re-engage: only rows with Outreach Status Message Done or Followed Up." : "Every row except Meeting Booked, the never-contact list, and people already emailed by this tool. Auto writes \"I wrote to you in October\" only for rows marked Message Done or Followed Up."}
           </p>
         </>
       )}

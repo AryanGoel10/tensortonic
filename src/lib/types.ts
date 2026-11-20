@@ -1,4 +1,6 @@
 export type Campaign = "Fresh pitch" | "Re-engage";
+/** What the user picks for a run. "Auto" resolves per row (see resolveCampaign). */
+export type RunCampaign = Campaign | "Auto";
 
 export interface ResearchItem {
   kind: "launch" | "changelog" | "blog" | "funding" | "news" | "docs" | "page";

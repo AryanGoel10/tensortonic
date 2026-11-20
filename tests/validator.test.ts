@@ -64,3 +64,25 @@ describe("validator", () => {
     expect(bodyWordCount(`one two ${DECK}\n{{SENDER_SIGNATURE}}\nAryan TensorTonic`)).toBe(2);
   });
 });
+
+describe("sequence doc Email 1", () => {
+  it("passes the checker when filled in", () => {
+    const body = `Hi Timothy,
+
+I wrote to you in October about running Cartesia on TensorTonic. One thing has changed since: our first sponsored contest, with Gradium, went live on 20 November with 1,000+ teams registered before day one.
+
+TensorTonic is where 52,000 engineers practise ML, GPU and agent code, with every submission executed against hidden tests. For Cartesia, I'd picture a contest like this:
+
+Since you just shipped Sonic 3, build a real-time voice agent that books meetings using the Sonic API.
+
+We preinstall Cartesia, write problems that genuinely need it, and run the contest for 2 to 4 weeks. Your team reviews the drafts once. Afterwards you get scored results for every submission, showcase builds you can share, and a report on where developers got stuck in your docs and SDK.
+
+Here's a short deck with the details: ${DECK}
+
+Would it help if I sent a draft problem set for Cartesia? If the timing's wrong, a quick no is fine too.
+
+{{SENDER_SIGNATURE}}`;
+    const r = validate({ ...good, email_subject: "A contest built on Cartesia?", email_body: body }, ctx);
+    expect(r.hard).toEqual([]);
+  });
+});

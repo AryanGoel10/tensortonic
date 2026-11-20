@@ -96,3 +96,14 @@ describe("model ids", () => {
     process.env = save;
   });
 });
+
+describe("auto campaign", () => {
+  it("re-engages people already emailed, first-touches the rest", async () => {
+    const { resolveCampaign } = await import("@/lib/eligibility");
+    const p = (s: string) => ({ outreachStatus: s }) as never;
+    expect(resolveCampaign(p("Message Done"), "Auto")).toBe("Re-engage");
+    expect(resolveCampaign(p("Followed Up"), "Auto")).toBe("Re-engage");
+    expect(resolveCampaign(p(""), "Auto")).toBe("Fresh pitch");
+    expect(resolveCampaign(p("Message Done"), "Fresh pitch")).toBe("Fresh pitch");
+  });
+});

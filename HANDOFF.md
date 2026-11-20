@@ -58,16 +58,18 @@ Not yet verified end to end: the writing step. Google retired `gemini-2.5-flash`
 
 Then, in order: 1 row → 10 Voice AI rows (judge quality) → dry-run queue of 5 → "Send test to me" → real sends after Aryan says go.
 
-## Open decisions (from Aryan's email sequence doc)
+## Email copy (from Aryan's sequence doc)
 
 Doc: https://docs.google.com/document/d/1YcLuJCy8IVX0ZyOcpaL5VzKbWCzEF0Rolaqb7M0rdyo
 
-1. Use the doc's Email 1 as the template: re-engage version ("I wrote to you in October…") for rows with Outreach Status Message Done / Followed Up, a first-touch version without that line for the rest. Templates live in `settings-defaults.ts` and Settings → Content.
-2. Engineer count: doc says 52,000, deck facts say "over 50,000". The rule checker only allows numbers listed in `ALLOWED_NUMBERS` in `src/lib/validator.ts` plus numbers found in the research, so update both the facts and that list.
-3. Gradium sign-ups: "[X] teams registered" — currently "1,000+ teams before day one".
-4. CTA: doc uses "Would it help if I sent a draft problem set? If the timing's wrong, a quick no is fine too." instead of the 20-minute call.
-5. Signature: "Aryan Goel / Founder's Office, TensorTonic" (Settings → Content).
-6. Email 2 (day-4 bump) as a real in-thread reply: possible because every send stores `send_queue.zoho_message_id`. Would need a new Inngest step that sleeps 4 days, checks for replies (`ZohoMail.messages.READ` scope), and replies in-thread; still human-approved. Emails 3 and 4 need real contest numbers and Gradium's OK, so add them only when those exist.
+Done: Email 1 is the template (`src/lib/settings-defaults.ts`, editable in Settings → Content).
+- Campaign **Auto** (default on Prospects): rows with Outreach Status Message Done / Followed Up get the re-engage version ("I wrote to you in October…"); everyone else gets the first-touch version (hook sentence instead).
+- Facts now use 52,000 engineers (allowed by the checker alongside 50,000+), "1,000+ teams registered before day one", the "draft problem set / quick no" CTA, Pratham as founder in LinkedIn/X, word limit 190.
+- Signature default: "Best, / Aryan Goel / Founder's Office, TensorTonic". A signature saved in Settings overrides it.
+
+Not built yet:
+- Email 2 (day-4 bump as a real in-thread reply). Every send stores `send_queue.zoho_message_id`; needs a new Inngest step (sleep 4 days, check replies with `ZohoMail.messages.READ`, reply in-thread), still human-approved.
+- Emails 3 and 4 need real contest numbers, showcase links and Gradium's OK. Add them as campaigns only once those exist; never let the model fill the brackets.
 
 ## Gotchas
 

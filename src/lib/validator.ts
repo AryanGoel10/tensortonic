@@ -26,7 +26,7 @@ export interface ValidationResult {
   ok: boolean;
 }
 
-export const LIMITS = { linkedin: 280, x: 280, subject: 60, bodyWords: 160 };
+export const LIMITS = { linkedin: 280, x: 280, subject: 60, bodyWords: 190 };
 
 export const BANNED = [
   "unlock",
@@ -48,9 +48,9 @@ export const BANNED = [
 
 export const HIRING = ["hire", "hires", "hiring", "recruit", "recruits", "recruiting", "recruiter", "candidates", "candidate", "talent pipeline", "screening"];
 
-// Numbers from the approved deck, plus the deck's own timeline numbers (1 week setup,
-// 2 to 4 week contest). Anything else must appear in the ResearchPack.
-const ALLOWED_NUMBERS = ["50,000+", "50,000", "1M+", "1M", "1,300+", "1,300", "1,000+", "1,000", "30", "20", "1", "2", "3", "4"];
+// Numbers from the approved deck and the sequence doc (52,000 engineers), plus the timeline
+// numbers (1 week setup, 2 to 4 week contest). Anything else must appear in the ResearchPack.
+const ALLOWED_NUMBERS = ["52,000", "50,000+", "50,000", "1M+", "1M", "1,300+", "1,300", "1,000+", "1,000", "30", "20", "1", "2", "3", "4"];
 
 export const SIGNATURE_TOKEN = "{{SENDER_SIGNATURE}}";
 

@@ -15,7 +15,7 @@ const DraftSchema = z.object({
   hook_source_url: z.string().describe("copied exactly from one of the research pack URLs"),
   challenge_idea: z.string().describe("1 sentence: a contest challenge built on their named product"),
   email_subject: z.string().describe("max 60 characters, no Re:"),
-  email_body: z.string().describe("plain text, max 160 words before the signature, ends with {{SENDER_SIGNATURE}}"),
+  email_body: z.string().describe("plain text, max 190 words before the signature, ends with {{SENDER_SIGNATURE}}"),
   linkedin_note: z.string().describe("max 280 characters, from Pratham, no links"),
   x_dm: z.string().describe("max 280 characters including the deck link, from Pratham"),
   confidence: z.enum(["high", "medium", "low"]),
@@ -63,10 +63,10 @@ function systemBlocks(s: AppSettings): Anthropic.TextBlockParam[] {
   // Stable across rows, so it is cached after the first call in a run.
   const text = `${s.systemPrompt}
 
-EMAIL TEMPLATE (first touch / fresh pitch). Follow the structure; write the words yourself:
+EMAIL TEMPLATE for campaign "Fresh pitch":
 ${s.emailTemplateFirst}
 
-EMAIL TEMPLATE (re-engage):
+EMAIL TEMPLATE for campaign "Re-engage":
 ${s.emailTemplateReengage}
 
 LINKEDIN NOTE:
@@ -208,7 +208,7 @@ ${JSON.stringify(prev.draft, null, 2)}
 It failed these checks. Fix only these problems and return the full corrected draft:
 ${prev.validation.hard.map((h) => `- ${h}`).join("\n")}
 
-Reminders: linkedin_note and x_dm max 280 characters each (count them), subject max 60 characters, email body max 160 words before {{SENDER_SIGNATURE}}, greeting must be "Hi ${p.firstName},", the email must contain ${s.deckLink}, hook_source_url must be one of allowed_source_urls exactly, no numbers except 50,000+, 1M+, 1,300+, 1,000+, 30, 20 and numbers that appear in the research pack.`;
+Reminders: linkedin_note and x_dm max 280 characters each (count them), subject max 60 characters, email body max 190 words before {{SENDER_SIGNATURE}}, greeting must be "Hi ${p.firstName},", the email must contain ${s.deckLink}, hook_source_url must be one of allowed_source_urls exactly, no numbers except 52,000, 50,000+, 1M+, 1,300+, 1,000+, 30, 20, 2 to 4 and numbers that appear in the research pack.`;
   const draft = tidy(await call(s, fixPrompt));
   return { draft, validation: validateDraft(draft, p, pack, s), attempts: prev.attempts + 1 };
 }
