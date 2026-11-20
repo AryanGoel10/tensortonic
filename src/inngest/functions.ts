@@ -165,7 +165,7 @@ export const sendEmail = inngest.createFunction(
         const body = q.body.replace(SIGNATURE_TOKEN, s.signature).trim();
 
         if (q.kind === "test") {
-          const r = await sendMail(q.senderEmail, q.toEmail, `[TEST] ${q.subject}`, body);
+          const r = await sendMail(q.senderEmail, q.toEmail, `[TEST] ${q.subject}`, body, s.fromName);
           await db().update(schema.sendQueue).set({ status: "sent", sentAt: new Date(), zohoMessageId: r.messageId }).where(eq(schema.sendQueue.id, queueId));
           await log({ ...ctx, kind: "send", message: `Test email sent to ${q.toEmail}` });
           return { test: true };
@@ -198,7 +198,7 @@ export const sendEmail = inngest.createFunction(
           return { dryRun: true };
         }
 
-        const r = await sendMail(q.senderEmail, q.toEmail, q.subject, body);
+        const r = await sendMail(q.senderEmail, q.toEmail, q.subject, body, s.fromName);
         const sentAt = new Date();
         await db().update(schema.sendQueue).set({ status: "sent", sentAt, zohoMessageId: r.messageId }).where(eq(schema.sendQueue.id, queueId));
 

@@ -82,6 +82,7 @@ export function SettingsClient() {
         <Toggle label='After an email sends, set Outreach Status ("Message Done" if it was empty, otherwise "Followed Up")' value={s.writeOutreachStatus} onChange={(v) => save({ writeOutreachStatus: v })} />
         <Toggle label="After an email sends, set Owner to the sender name if Owner is empty" value={s.writeOwner} onChange={(v) => save({ writeOwner: v })} />
         <Toggle label='After "Mark LinkedIn sent", set the Linkedin column to the name of whoever clicked it' value={s.writeLinkedin} onChange={(v) => save({ writeLinkedin: v })} />
+        <TextField label="From name prospects see (e.g. Aryan Goel)" value={s.fromName} onSave={(v) => save({ fromName: v })} />
         <TextField label="Sender name written to Owner" value={s.senderDisplayName} onSave={(v) => save({ senderDisplayName: v })} />
       </Card>
 

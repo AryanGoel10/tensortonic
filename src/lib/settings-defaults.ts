@@ -71,6 +71,7 @@ export interface AppSettings {
   deckLink: string;
   signature: string; // appended to every email in place of {{SENDER_SIGNATURE}}
   senderDisplayName: string; // written to Owner when empty
+  fromName: string; // display name prospects see in the From field (empty = Zoho account name)
   sendingMailbox: string; // email of the signed-in user whose Zoho mailbox sends everything
   dryRun: boolean;
   dailyCap: number;
@@ -93,6 +94,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   deckLink: DECK_LINK,
   signature: SIGNATURE_DEFAULT,
   senderDisplayName: "Aryan",
+  fromName: "Aryan Goel",
   sendingMailbox: "",
   dryRun: true,
   dailyCap: 30,

@@ -51,6 +51,8 @@ async function tokenRequest(params: Record<string, string>): Promise<TokenRespon
 
 interface ZohoAccount {
   accountId: string;
+  emailAddress?: string;
+  isDefaultAccount?: boolean;
   primaryEmailAddress?: string;
   mailboxAddress?: string;
   displayName?: string;
@@ -61,9 +63,14 @@ async function listAccounts(accessToken: string): Promise<ZohoAccount[]> {
   const res = await fetch(`${mailBase()}/api/accounts`, {
     headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
   });
-  const json = (await res.json().catch(() => ({}))) as { data?: ZohoAccount[]; status?: { description?: string } };
+  const json = (await res.json().catch(() => ({}))) as {
+    data?: ZohoAccount[] | { primaryAccount?: ZohoAccount };
+    status?: { description?: string };
+  };
   if (!res.ok) throw new Error(`Zoho accounts error ${res.status}: ${json.status?.description ?? ""}`);
-  return json.data ?? [];
+  const d = json.data;
+  if (Array.isArray(d)) return [...d].sort((a, b) => Number(!!b.isDefaultAccount) - Number(!!a.isDefaultAccount));
+  return d?.primaryAccount ? [d.primaryAccount] : [];
 }
 
 /** Exchange the OAuth code, look up the mailbox and store it encrypted. */
@@ -74,8 +81,9 @@ export async function completeConnect(userEmail: string, code: string) {
   const accounts = await listAccounts(tok.access_token);
   const acct = accounts[0];
   if (!acct) throw new Error("No Zoho Mail account found for this login");
+  // primaryEmailAddress is the Zoho LOGIN (can be a personal Gmail). Send from the mailbox address.
   const fromAddress =
-    acct.sendMailDetails?.find((d) => d.fromAddress)?.fromAddress ?? acct.primaryEmailAddress ?? acct.mailboxAddress;
+    acct.mailboxAddress ?? acct.emailAddress ?? acct.sendMailDetails?.find((d) => d.fromAddress)?.fromAddress ?? acct.primaryEmailAddress;
   if (!fromAddress) throw new Error("Couldn't find a from address on the Zoho account");
 
   const row = {
@@ -119,13 +127,13 @@ async function accessToken(userEmail: string, force = false): Promise<{ token: s
 }
 
 /** Send one plain-text email from the mailbox owned by `userEmail`. Refreshes the token on 401. */
-export async function sendMail(userEmail: string, to: string, subject: string, content: string): Promise<{ messageId: string }> {
+export async function sendMail(userEmail: string, to: string, subject: string, content: string, fromName?: string): Promise<{ messageId: string }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const { token, accountId, fromAddress } = await accessToken(userEmail, attempt > 0);
     const res = await fetch(`${mailBase()}/api/accounts/${accountId}/messages`, {
       method: "POST",
       headers: { Authorization: `Zoho-oauthtoken ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ fromAddress, toAddress: to, subject, content, mailFormat: "plaintext", encoding: "UTF-8" }),
+      body: JSON.stringify({ fromAddress: fromName?.trim() ? `"${fromName.trim().replace(/"/g, "")}" <${fromAddress}>` : fromAddress, toAddress: to, subject, content, mailFormat: "plaintext", encoding: "UTF-8" }),
     });
     if (res.status === 401 && attempt === 0) continue;
     const json = (await res.json().catch(() => ({}))) as {
