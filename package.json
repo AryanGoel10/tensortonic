@@ -18,6 +18,7 @@
     "@anthropic-ai/sdk": "^1.11.0",
     "@mendable/firecrawl-js": "^4.54.0",
     "@neondatabase/serverless": "^1.2.1",
+    "@vercel/oidc": "^4.0.9",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.4",
     "googleapis": "^190.0.0",

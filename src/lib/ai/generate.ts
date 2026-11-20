@@ -21,14 +21,34 @@ const DraftSchema = z.object({
   flags: z.array(z.string()),
 });
 
-let _client: Anthropic | null = null;
-function client(): Anthropic {
-  if (!_client) _client = new Anthropic(); // reads ANTHROPIC_API_KEY
-  return _client;
+const GATEWAY_URL = "https://ai-gateway.vercel.sh";
+
+/** Direct Anthropic API when ANTHROPIC_API_KEY is set; otherwise Vercel AI Gateway (API key or the project's OIDC token). */
+export function usingGateway(): boolean {
+  return !process.env.ANTHROPIC_API_KEY;
 }
 
+let _direct: Anthropic | null = null;
+async function client(): Promise<Anthropic> {
+  if (!usingGateway()) {
+    _direct ??= new Anthropic();
+    return _direct;
+  }
+  let token = process.env.AI_GATEWAY_API_KEY;
+  if (!token) {
+    // OIDC tokens are short-lived, so fetch per call (cheap; the helper caches and refreshes).
+    const { getVercelOidcToken } = await import("@vercel/oidc");
+    token = await getVercelOidcToken();
+  }
+  return new Anthropic({ apiKey: token, baseURL: GATEWAY_URL });
+}
+
+/** Model id from CLAUDE_MODEL. AI Gateway ids look like "anthropic/claude-sonnet-5.5". */
 export function model(): string {
-  return process.env.CLAUDE_MODEL || "claude-sonnet-5-5";
+  const m = process.env.CLAUDE_MODEL || "claude-sonnet-5-5";
+  if (!usingGateway()) return m.replace(/^anthropic\//, "").replace(/(\d)\.(\d)/, "$1-$2");
+  if (m.includes("/")) return m;
+  return `anthropic/${m.replace(/-(\d+)-(\d+)$/, "-$1.$2")}`;
 }
 
 function systemBlocks(s: AppSettings): Anthropic.TextBlockParam[] {
@@ -98,7 +118,7 @@ export function tidy(d: Draft): Draft {
 }
 
 async function call(s: AppSettings, userContent: string): Promise<Draft> {
-  const res = await client().messages.parse({
+  const res = await (await client()).messages.parse({
     model: model(),
     max_tokens: 16000,
     system: systemBlocks(s),

@@ -79,3 +79,20 @@ describe("crypto", () => {
     expect(() => decrypt([iv, tag, Buffer.from("zzz").toString("base64") + ct].join("."))).toThrow();
   });
 });
+
+describe("model ids", () => {
+  it("maps between Anthropic and AI Gateway ids", async () => {
+    const { model } = await import("@/lib/ai/generate");
+    const save = { ...process.env };
+    delete process.env.ANTHROPIC_API_KEY;
+    process.env.CLAUDE_MODEL = "claude-sonnet-5-5";
+    expect(model()).toBe("anthropic/claude-sonnet-5.5");
+    process.env.CLAUDE_MODEL = "claude-haiku-5-5";
+    expect(model()).toBe("anthropic/claude-haiku-5.5");
+    process.env.ANTHROPIC_API_KEY = "x";
+    expect(model()).toBe("claude-haiku-5-5");
+    process.env.CLAUDE_MODEL = "anthropic/claude-sonnet-5.5";
+    expect(model()).toBe("claude-sonnet-5-5");
+    process.env = save;
+  });
+});

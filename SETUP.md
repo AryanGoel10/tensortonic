@@ -59,7 +59,10 @@ Delete the downloaded key file once it's stored in Vercel.
 ## 4. Firecrawl and Anthropic
 
 - `FIRECRAWL_API_KEY`: <https://www.firecrawl.dev/app/api-keys>. Each row costs about 5 to 8 credits (homepage, site map, up to 2 pages, a news search, and 1 or 2 searches for the person's X profile).
-- `ANTHROPIC_API_KEY`: <https://platform.claude.com/settings/keys>. `CLAUDE_MODEL` defaults to `claude-sonnet-5-5`. Each draft is one call, plus one more only when the first draft fails a check.
+- Claude, either way:
+  - **Vercel AI Gateway (no key):** leave `ANTHROPIC_API_KEY` unset. On Vercel the app authenticates to the gateway with the project's OIDC token automatically; usage is billed to the team's AI Gateway credits (Vercel → AI Gateway). Locally, set `AI_GATEWAY_API_KEY`.
+  - **Direct:** set `ANTHROPIC_API_KEY` from <https://platform.claude.com/settings/keys>.
+  - `CLAUDE_MODEL` defaults to `claude-sonnet-5-5` (about $0.04 to $0.08 per row). `claude-haiku-5-5` is roughly 20x cheaper. Each draft is one call, plus one more only when the first draft fails a check.
 
 ## 5. Zoho Mail (Aryan's mailbox)
 
