@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Internal, signed-in-only app that must always read the sheet live: no prerender caching.
+  cacheComponents: false,
+  partialPrefetching: false,
+  poweredByHeader: false,
   turbopack: {
     rules: {
       "*.css": {

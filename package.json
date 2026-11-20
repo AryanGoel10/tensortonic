@@ -6,21 +6,40 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "inngest:dev": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.11.0",
+    "@mendable/firecrawl-js": "^4.54.0",
+    "@neondatabase/serverless": "^1.2.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.4",
+    "googleapis": "^190.0.0",
+    "inngest": "^4.26.2",
     "next": "16.4.6",
+    "next-auth": "^5.0.0-beta.32",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
-    "@types/node": "^20",
+    "@types/node": "^22.20.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^18.0.10",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
     "tailwindcss": "4.3.3",
-    "typescript": "^5"
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.1.1"
   }
 }
