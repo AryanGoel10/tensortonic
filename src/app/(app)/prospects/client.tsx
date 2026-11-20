@@ -34,6 +34,7 @@ export function ProspectsClient() {
   const [runs, setRuns] = useState<string[]>([]);
   const [progress, setProgress] = useState<Record<string, { status: string; error: string | null }>>({});
   const [message, setMessage] = useState("");
+  const [starting, setStarting] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!sheet || !tab) return;
@@ -118,7 +119,8 @@ export function ProspectsClient() {
   };
 
   const doRun = async () => {
-    if (!confirm) return;
+    if (!confirm || starting) return;
+    setStarting(true);
     setMessage("");
     try {
       if (confirm.needColumns) await addAiColumns(sheet, tab);
@@ -131,6 +133,8 @@ export function ProspectsClient() {
     } catch (e) {
       setError((e as Error).message);
       setConfirm(null);
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -226,7 +230,7 @@ export function ProspectsClient() {
             </ul>
             <div className="flex justify-end gap-2">
               <Button onClick={() => setConfirm(null)}>Cancel</Button>
-              <Button variant="primary" onClick={doRun}>Start</Button>
+              <Button variant="primary" disabled={starting} onClick={doRun}>{starting ? "Starting…" : "Start"}</Button>
             </div>
           </div>
         </div>

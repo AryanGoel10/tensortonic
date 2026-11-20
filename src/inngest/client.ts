@@ -1,6 +1,12 @@
 import { Inngest } from "inngest";
 
-export const inngest = new Inngest({ id: "tt-outreach" });
+// TT_INNGEST_* (keys copied from your own Inngest dashboard) win over the INNGEST_* values
+// the Vercel integration injects, in case the integration created a separate Inngest account.
+export const inngest = new Inngest({
+  id: "tt-outreach",
+  signingKey: process.env.TT_INNGEST_SIGNING_KEY || process.env.INNGEST_SIGNING_KEY,
+  eventKey: process.env.TT_INNGEST_EVENT_KEY || process.env.INNGEST_EVENT_KEY,
+});
 
 export const EVENTS = {
   researchRow: "outreach/row.research",
